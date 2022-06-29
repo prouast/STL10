@@ -1,10 +1,11 @@
 from __future__ import print_function
 
+import argparse
 import sys
 import os, sys, tarfile, errno
 import numpy as np
 import matplotlib.pyplot as plt
-    
+
 if sys.version_info >= (3, 0, 0):
     import urllib.request as urllib # ugly but works
 else:
@@ -15,7 +16,7 @@ try:
 except:
     from scipy.misc import imsave
 
-print(sys.version_info) 
+print(sys.version_info)
 
 # image shape
 HEIGHT = 96
@@ -32,10 +33,20 @@ DATA_DIR = './data'
 DATA_URL = 'http://ai.stanford.edu/~acoates/stl10/stl10_binary.tar.gz'
 
 # path to the binary train file with image data
-DATA_PATH = './data/stl10_binary/train_X.bin'
+TRAIN_DATA_PATH = './data/stl10_binary/train_X.bin'
 
 # path to the binary train file with labels
-LABEL_PATH = './data/stl10_binary/train_y.bin'
+TRAIN_LABEL_PATH = './data/stl10_binary/train_y.bin'
+
+# path to the binary test file with image data
+TEST_DATA_PATH = './data/stl10_binary/test_X.bin'
+
+# path to the binary test file with labels
+TEST_LABEL_PATH = './data/stl10_binary/test_y.bin'
+
+# path to the binary unlabeled file with image data
+UNLABELED_DATA_PATH = './data/stl10_binary/unlabeled_X.bin'
+
 
 def read_labels(path_to_labels):
     """
@@ -103,8 +114,10 @@ def plot_image(image):
     plt.imshow(image)
     plt.show()
 
+
 def save_image(image, name):
     imsave("%s.png" % name, image, format="png")
+
 
 def download_and_extract():
     """
@@ -125,12 +138,16 @@ def download_and_extract():
         print('Downloaded', filename)
         tarfile.open(filepath, 'r:gz').extractall(dest_directory)
 
-def save_images(images, labels):
+
+def save_images(images, labels, folder):
     print("Saving images to disk")
     i = 0
     for image in images:
-        label = labels[i]
-        directory = './img/' + str(label) + '/'
+        if folder == 'unlabeled':
+            directory = './img/' + folder + '/'
+        else:
+            label = labels[i]
+            directory = './img/' + folder + '/' + str(label) + '/'
         try:
             os.makedirs(directory, exist_ok=True)
         except OSError as exc:
@@ -140,22 +157,72 @@ def save_images(images, labels):
         print(filename)
         save_image(image, filename)
         i = i+1
-    
+
+
+def str2bool(v):
+    """Boolean type for argparse"""
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
 if __name__ == "__main__":
+    # Parse args
+    parser = argparse.ArgumentParser('STL-10')
+    parser.add_argument('--save_train', default=True, type=str2bool, help='Save train images to disk')
+    parser.add_argument('--save_test', default=False, type=str2bool, help='Save test images to disk')
+    parser.add_argument('--save_unlabeled', default=False, type=str2bool, help='Save unlabeled images to disk')
+    args = parser.parse_args()
+
     # download data if needed
     download_and_extract()
 
-    # test to check if the image is read correctly
-    with open(DATA_PATH) as f:
-        image = read_single_image(f)
-        plot_image(image)
+    if args.save_train:
+        # test to check if the image is read correctly
+        with open(TRAIN_DATA_PATH) as f:
+            image = read_single_image(f)
+            plot_image(image)
 
-    # test to check if the whole dataset is read correctly
-    images = read_all_images(DATA_PATH)
-    print(images.shape)
+        # test to check if the whole dataset is read correctly
+        images = read_all_images(TRAIN_DATA_PATH)
+        print(images.shape)
 
-    labels = read_labels(LABEL_PATH)
-    print(labels.shape)
+        labels = read_labels(TRAIN_LABEL_PATH)
+        print(labels.shape)
 
-    # save images to disk
-    save_images(images, labels)
+        # save images to disk
+        save_images(images, labels, "train")
+
+    if args.save_test:
+        # test to check if the image is read correctly
+        with open(TEST_DATA_PATH) as f:
+            image = read_single_image(f)
+            plot_image(image)
+
+        # test to check if the whole dataset is read correctly
+        images = read_all_images(TEST_DATA_PATH)
+        print(images.shape)
+
+        labels = read_labels(TEST_LABEL_PATH)
+        print(labels.shape)
+
+        # save images to disk
+        save_images(images, labels, "test")
+
+    if args.save_unlabeled:
+        # test to check if the image is read correctly
+        with open(UNLABELED_DATA_PATH) as f:
+            image = read_single_image(f)
+            plot_image(image)
+
+        # test to check if the whole dataset is read correctly
+        images = read_all_images(UNLABELED_DATA_PATH)
+        print(images.shape)
+
+        # save images to disk
+        save_images(images, None, "unlabeled")
